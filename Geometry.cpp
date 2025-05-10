@@ -1,3 +1,4 @@
+//Point Locator
 //Line passing through (x1,y1),(x2,y2) 
 //for point (x3,y3) check whether it is on the line or above it (left) or below it (right)
 void pointLocationTest(int x1,int y1,int x2,int y2,int x3,int y3){
