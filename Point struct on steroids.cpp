@@ -192,26 +192,3 @@ struct P
 };
 long double pi=acos(-1L);
 double eps=1e-9;
-void VoidVortexOfNothingness(){
-    P p1,p2,p3,p4;
-    p1.input();
-    p2.input();
-    p3.input();
-    p4.input();
-    cout<<fx(7)<<P::dist_rays(p1,p2,p3,p4)<<endl;
-}
-signed main()
-{
-    //freopen("mex.in", "r", stdin);
-    // freopen("distance2.in", "r", stdin);
-    // freopen("distance2.out", "w", stdout);
-   francesco_bernoulli
-   int t=1;
-    // cin>>t;
-   while(t--){
-   VoidVortexOfNothingness();
-   }
-
-    return 0;
-}
-//CIAO_McQUEEN//
