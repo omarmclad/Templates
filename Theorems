@@ -1,6 +1,11 @@
 Theorems
+//
 pick's theorem
-//A=I+(B/2)-1
+A=I+(B/2)-1
 A: area
 b:integer points
 I:lattice points
+//
+Line intersection given two general eqn
+x=(b1*c2-b2*c1)/(a1*b2-a2*b1)
+y=(a2*c1-a1*c2)/(a1*b2-a2*b1)
