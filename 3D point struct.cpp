@@ -38,6 +38,9 @@ struct point3d {
     point3d operator/(ftype t) const {
         return point3d(*this) /= t;
     }
+    ftype dot(point3d a, point3d b) {
+        return a.x * b.x + a.y * b.y + a.z * b.z;
+    }
 };
 point3d operator*(ftype a, point3d b) {
     return b * a;
