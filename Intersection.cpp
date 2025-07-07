@@ -4,6 +4,9 @@ int pointLocationTest(int x1,int y1,int x2,int y2,int x3,int y3){
     return (val > 0 ? 1 : -1);
 }
 bool onSegment(int x1, int y1, int x2, int y2, int x, int y) {
+    int dx1 = x2 - x1, dy1 = y2 - y1;
+    int dx2 = x - x1, dy2 = y - y1;
+    if (dx1 * dy2 != dy1 * dx2) return false; // Not colinear
     return min(x1,x2) <= x && x <= max(x1,x2) &&
            min(y1,y2) <= y && y <= max(y1,y2);
 }
