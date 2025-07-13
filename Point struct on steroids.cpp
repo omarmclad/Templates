@@ -189,6 +189,31 @@ struct P
     bool operator<(const P &b) const {
         return tie(x, y) < tie(b.x, b.y);
     }
+    static P baseA, dirAB;
+
+    static bool compare_along_line(const P& p1, const P& p2) {
+        return ((p1 - baseA) & dirAB) < ((p2 - baseA) & dirAB);
+    }
 };
+P translate(P a, P v){
+    return a+v;
+}
+P scale(P a, P ref, double factor){
+    return ref+(a-ref)*factor;
+}
+P rotate(P a, P ref, double angle){
+    //for cw negate the angle
+    P v=a-ref;
+    P c={cos(angle),sin(angle)};
+    P res={v.x * c.x - v.y * c.y, v.x * c.y + v.y * c.x};
+    return (ref+res);
+}
+P general(P a, P acpy, P b, P bcpy, P r) {
+    if (a == b) return acpy;
+    P ab = b - a;
+    P ar = r - a;
+    double t = (ar & ab) / ab.length2(); // projection factor along ab
+    return acpy + (bcpy - acpy) * t;
+}
 long double pi=acos(-1L);
 double eps=1e-9;
