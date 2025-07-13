@@ -5,6 +5,9 @@ struct P
     void input() {
         cin >> x >> y;
     }
+    void output() {
+        cout<<x<<" "<<y;
+    }
     // Vector subtraction: this - b
     P operator-(const P &b) const {
         return {x - b.x, y - b.y};
@@ -83,7 +86,12 @@ struct P
         double len2 = b.length2();
         return b * (dot / (double)len2);
     }
-
+    P reflect(const P &b) const {
+        double dot = (*this & b);
+        double len2 = b.length2();
+        P proj = b * (dot / len2);  // projection of *this onto b
+        return proj * 2 - *this;    // reflect: 2·proj - original
+    }
     // Distance from point to line through points a and b
     // Formula: |(b - a) × (this - a)| / |b - a|
     // Geometric meaning: height from point to line
@@ -180,6 +188,32 @@ struct P
     {
         return acos((*this & b) / (length() * b.length()));
     }
+    // Static function: returns unit vector in direction of angle bisector between a and b
+    static P bisector(const P &a, const P &b) {
+        P ua = a.unit();
+        P ub = b.unit();
+        P sum = ua + ub;
+
+        if (sum.length2() < 1e-9) {
+            // a and b are in opposite directions, bisector undefined
+            return {0, 0}; // or handle separately
+        }
+        return sum.unit(); // normalize the sum to get unit bisector
+        // P p1,p2,p3;
+        // p1.input();
+        // p2.input();
+        // p3.input();
+        // P x=p2-p1,y=p3-p1;
+        // x=x.unit();
+        // y=y.unit();
+        // P z=x+y;
+        // double a=z.y;
+        // double b=-z.x;
+        // double c=-(a*p1.x+b*p1.y);
+        // if(abs(c)<=eps) c=0;
+        // cout<<fx(7)<<a<<" "<<b<<" "<<c;
+    }
+
     // Point equality: returns true if (x, y) == (b.x, b.y)
     bool operator==(const P &b) const {
         return x == b.x && y == b.y;
@@ -189,31 +223,4 @@ struct P
     bool operator<(const P &b) const {
         return tie(x, y) < tie(b.x, b.y);
     }
-    static P baseA, dirAB;
-
-    static bool compare_along_line(const P& p1, const P& p2) {
-        return ((p1 - baseA) & dirAB) < ((p2 - baseA) & dirAB);
-    }
 };
-P translate(P a, P v){
-    return a+v;
-}
-P scale(P a, P ref, double factor){
-    return ref+(a-ref)*factor;
-}
-P rotate(P a, P ref, double angle){
-    //for cw negate the angle
-    P v=a-ref;
-    P c={cos(angle),sin(angle)};
-    P res={v.x * c.x - v.y * c.y, v.x * c.y + v.y * c.x};
-    return (ref+res);
-}
-P general(P a, P acpy, P b, P bcpy, P r) {
-    if (a == b) return acpy;
-    P ab = b - a;
-    P ar = r - a;
-    double t = (ar & ab) / ab.length2(); // projection factor along ab
-    return acpy + (bcpy - acpy) * t;
-}
-long double pi=acos(-1L);
-double eps=1e-9;
