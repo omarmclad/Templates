@@ -224,3 +224,23 @@ struct P
         return tie(x, y) < tie(b.x, b.y);
     }
 };
+P translate(P a, P v){
+    return a+v;
+}
+P scale(P a, P ref, double factor){
+    return ref+(a-ref)*factor;
+}
+P rotate(P a, P ref, double angle){
+    //for cw negate the angle
+    P v=a-ref;
+    P c={cos(angle),sin(angle)};
+    P res={v.x * c.x - v.y * c.y, v.x * c.y + v.y * c.x};
+    return (ref+res);
+}
+P general(P a, P acpy, P b, P bcpy, P r) {
+    if (a == b) return acpy;
+    P ab = b - a;
+    P ar = r - a;
+    double t = (ar & ab) / ab.length2(); // projection factor along ab
+    return acpy + (bcpy - acpy) * t;
+}
