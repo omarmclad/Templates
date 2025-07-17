@@ -40,3 +40,14 @@ vector<P> polygonCut(const vector<P> &poly, P a, P b) {
     }
     return result;
 }
+vector<P> clipPolygon(const vector<P> &subject, const vector<P> &clipper) {
+    vector<P> result = subject;
+    int n = clipper.size();
+    for (int i = 0; i < n; ++i) {
+        P a = clipper[i];
+        P b = clipper[(i + 1) % n];
+        result = polygonCut(result, a, b);  // cut against one edge
+    }
+    return result;
+}
+
