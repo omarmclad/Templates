@@ -50,4 +50,30 @@ vector<P> clipPolygon(const vector<P> &subject, const vector<P> &clipper) {
     }
     return result;
 }
+// Returns:
+//  0 => outside
+//  1 => on the edge
+//  2 => inside
+int point_in_polygon(const vector<P> &poly, const P &pt) {
+    int n = poly.size();
+    bool inside = false;
+    
+    for (int i = 0; i < n; ++i) {
+        P a = poly[i], b = poly[(i + 1) % n];
 
+        // Check if point lies exactly on the edge (segment)
+        P ab = b - a;
+        P ap = pt - a;
+        P bp = pt - b;
+        if (fabs(ab * ap) < 1e-9 && (ap & ab) >= 0 && (bp & ab) <= 0)
+            return 1;  // On edge
+
+        // Ray casting: check for crossing horizontal ray to the right
+        if ((a.y > pt.y) != (b.y > pt.y)) {
+            double x_intersect = a.x + (b.x - a.x) * (pt.y - a.y) / (b.y - a.y);
+            if (x_intersect > pt.x)
+                inside = !inside;
+        }
+    }
+    return inside ? 2 : 0;
+}
