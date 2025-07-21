@@ -244,3 +244,18 @@ P general(P a, P acpy, P b, P bcpy, P r) {
     double t = (ar & ab) / ab.length2(); // projection factor along ab
     return acpy + (bcpy - acpy) * t;
 }
+// Sorts points by polar angle with respect to reference point O
+P O; // Global reference point for sorting
+
+bool polar_cmp(const P &a, const P &b) {
+    P va = a - O;
+    P vb = b - O;
+
+    int half_a = (va.y > 0 || (va.y == 0 && va.x >= 0));
+    int half_b = (vb.y > 0 || (vb.y == 0 && vb.x >= 0));
+
+    if (half_a != half_b)
+        return half_a > half_b;
+
+    return (va * vb) > 0; // Cross product to compare angles
+}
