@@ -259,3 +259,11 @@ bool polar_cmp(const P &a, const P &b) {
 
     return (va * vb) > 0; // Cross product to compare angles
 }
+//usage
+// vector<P> pts = { ... };  // fill with points
+// O = pts[0];               // set reference point (e.g., the lowest-leftmost point)
+// for (P& p : pts) {
+//     if (p.y < O.y || (p.y == O.y && p.x < O.x))
+//         O = p;
+// }
+// sort(pts.begin(), pts.end(), polar_cmp);
