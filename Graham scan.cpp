@@ -34,3 +34,47 @@ vector<P> grahamScan(vector<P> pts) {
 
     return hull;
 }
+double rotatingCalipersDiameter(const vector<P>& pts) {
+    vector<P> hull = grahamScan(pts);
+    int n = hull.size();
+    if (n == 1) return 0;
+    if (n == 2) return hull[0].dist(hull[1]);
+
+    double maxDist = 0;
+    int j = 1;
+
+    for (int i = 0; i < n; i++) {
+        // Move j while distance increases
+        while ((hull[i].dist(hull[(j + 1) % n])) > (hull[i].dist(hull[j]))) {
+            j = (j + 1) % n;
+        }
+
+        maxDist = max(maxDist, hull[i].dist(hull[j]));
+    }
+
+    return maxDist;
+}
+double rotatingCalipersMinWidth(const vector<P>& pts) {
+    vector<P> hull = grahamScan(pts);
+    int n = hull.size();
+    if (n <= 2) return 0;
+
+    double minWidth = 1e18;
+    int j = 1;
+
+    for (int i = 0; i < n; ++i) {
+        int ni = (i + 1) % n;
+
+        // Move j while height increases
+        while ((abs(hull[i].triangle(hull[ni], hull[(j + 1) % n]))) >
+               (abs(hull[i].triangle(hull[ni], hull[j])))) {
+            j = (j + 1) % n;
+        }
+
+        // Once j is optimal, measure height
+        double height = hull[j].dist_to_line(hull[i], hull[ni]);
+        minWidth = min(minWidth, height);
+    }
+
+    return minWidth;
+}
