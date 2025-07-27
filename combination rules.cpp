@@ -29,27 +29,27 @@ int factoring_rule(int n, int k) {
     return (n * C[n - 1][k - 1] / k) % MOD;
 }
 
-// ∑ C(n, k) = 2^n
+// ∑ C(n, k) = 2^n from k=0 to n
 int sum_over_k(int n) {
     return (1LL << n) % MOD;
 }
 
-// ∑ C(n, k) over n = C(n+1, k+1)
+// ∑ C(m, k) over n = C(n+1, k+1) from m=0 to m=n 
 int sum_over_n(int n, int k) {
     return C[n + 1][k + 1];
 }
 
-// ∑ C(n + k, k) = C(n + m + 1, m)
+// ∑ C(n + k, k) = C(n + m + 1, m) from k=0 to k=m
 int sum_over_n_and_k(int n, int m) {
     return C[n + m + 1][m];
 }
 
-// Sum of squares: ∑ C(n, k)^2 = C(2n, n)
+// Sum of squares: ∑ C(n, k)^2 = C(2n, n) from k=0 to k=n
 int sum_of_squares(int n) {
     return C[2 * n][n];
 }
 
-// Weighted sum: ∑ k * C(n, k) = n * 2^(n - 1)
+// Weighted sum: ∑ k * C(n, k) = n * 2^(n - 1) from k=1 to k=n
 int weighted_sum(int n) {
     return (n * (1LL << (n - 1))) % MOD;
 }
