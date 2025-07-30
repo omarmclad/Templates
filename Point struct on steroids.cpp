@@ -13,6 +13,10 @@ struct P
         return {x - b.x, y - b.y};
     }
 
+    P rot90() const {
+    return P{-y, x};
+    }
+
     // Subtract and assign: this -= b
     void operator-=(const P &b) {
         x -= b.x;
