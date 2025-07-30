@@ -57,3 +57,35 @@ struct circle {
         r = p.dist(a);
     }
 };
+// given n points, find the minimum enclosing circle of the points
+// call convex_hull() before this for faster solution
+// expected O(n)
+// use those 
+// #include <random>    // for mt19937, random_device, shuffle
+// #include <chrono>    // for steady_clock
+circle minimum_enclosing_circle(vector<Point> &p) {
+    //–– set up a C++17‑compatible RNG
+    static std::mt19937 rng(
+        std::chrono::steady_clock::now().time_since_epoch().count()
+    );
+    //–– shuffle the points
+    std::shuffle(p.begin(), p.end(), rng);
+    int n = p.size();
+    circle c(p[0], 0);
+    for (int i = 1; i < n; i++) {
+        if (sign(p[i].dist(c.p) - c.r) > 0) {
+            c = circle(p[i], 0);
+            for (int j = 0; j < i; j++) {
+                if (sign(p[j].dist(c.p) - c.r) > 0) {
+                    c = circle((p[i] + p[j]) / 2.0, p[i].dist(p[j]) / 2.0);
+                    for (int k = 0; k < j; k++) {
+                        if (sign(p[k].dist(c.p) - c.r) > 0) {
+                            c = circle(p[i], p[j], p[k]);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return c;
+}
