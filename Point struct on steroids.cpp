@@ -224,6 +224,12 @@ struct P
         return tie(x, y) < tie(b.x, b.y);
     }
 };
+vector<P> get_rectangle(P a, P c) {
+    P o = (a + c) / 2.0; // center of the rectangle
+    P b = rotate(a, o, M_PI / 2); // rotate a 90° counter-clockwise around center
+    P d = rotate(c, o, M_PI / 2); // rotate c 90° counter-clockwise around center
+    return {a, b, c, d}; // returns points in CCW order
+}
 P translate(P a, P v){
     return a+v;
 }
