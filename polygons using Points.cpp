@@ -77,3 +77,15 @@ int point_in_polygon(const vector<P> &poly, const P &pt) {
     }
     return inside ? 2 : 0;
 }
+// Returns true if polygon p is convex (in order, not necessarily CCW)
+bool is_convex(const vector<P>& p) {
+    bool s[3] = {0, 0, 0};
+    int n = p.size();
+    for (int i = 0; i < n; i++) {
+        int j = (i + 1) % n;
+        int k = (j + 1) % n;
+        double cross = (p[j] - p[i]) * (p[k] - p[i]);  // cross product
+        s[sign(cross) + 1] = 1;
+        if (s[0] && s[2]) return false;
+    }
+    return true;
