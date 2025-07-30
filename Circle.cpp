@@ -48,11 +48,26 @@ struct circle {
         Point ab_perp = (b - a).rot90();
         Point ac_perp = (c - a).rot90();
 
-        // bool ok = line_intersection(ab_mid, ab_mid + ab_perp, ac_mid, ac_mid + ac_perp, p);
-        // if(!ok){
-        //     cout<<-1<<endl;
-        //     return;
-        // }
+struct circle {
+    Point p; // center
+    double r;
+
+    circle() {}
+    circle(Point p, double r) : p(p), r(r) {}
+
+    // Construct circle through three points
+    circle(Point a, Point b, Point c) {
+        Point ab_mid = (a + b) / 2.0;
+        Point ac_mid = (a + c) / 2.0;
+
+        Point ab_perp = (b - a).rot90();
+        Point ac_perp = (c - a).rot90();
+
+        bool ok = line_intersection(ab_mid, ab_mid + ab_perp, ac_mid, ac_mid + ac_perp, p);
+        assert(ok);
+        r = p.dist(a);
+    }
+};
 
         r = p.dist(a);
     }
