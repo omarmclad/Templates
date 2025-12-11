@@ -1,0 +1,87 @@
+===============================
+ Regular Polygon Formulas
+===============================
+
+Given:
+- n = number of sides
+- a = side length
+- R = circumradius (circle outside)
+- r = inradius (circle inside)
+
+1) Interior Angle:
+    interior_angle = (n - 2) * 180 / n
+    -> angle inside each corner of the polygon.
+
+2) Central Angle:
+    central_angle = 360 / n
+    -> angle from center between two adjacent vertices.
+
+3) Perimeter:
+    P = n * a
+    -> total boundary length.
+
+4) Area:
+    A = (n * a^2) / (4 * tan(pi / n))
+    -> standard formula for area using number of sides and side length.
+
+5) Circumradius (R):
+    R = a / (2 * sin(pi / n))
+    -> radius of the circle that passes through all vertices.
+
+6) Inradius (r):
+    r = a / (2 * tan(pi / n))
+    -> radius of the circle touching all sides from inside.
+
+7) Area using inradius:
+    A = (P * r) / 2
+    -> alternative area formula when perimeter and inradius are known.
+
+8) Relationship between R and r:
+    r = R * cos(pi / n)
+    -> connects outer radius and inner radius.
+
+===============================
+ Circle Geometry Formulas
+===============================
+
+Given:
+- R = radius
+- d = diameter = 2R
+- theta = angle in radians
+
+1) Circumference:
+    C = 2 * pi * R
+    -> total distance around the circle.
+
+2) Area:
+    A = pi * R^2
+    -> space enclosed by the circle.
+
+3) Arc Length:
+    arc = R * theta
+    -> length of curved boundary for central angle theta.
+
+4) Sector Area:
+    sector_area = 0.5 * R^2 * theta
+    -> area of a "pizza slice" with angle theta.
+
+5) Chord Length:
+    chord = 2 * R * sin(theta / 2)
+    -> straight line between two points on the circle.
+
+6) Segment Height (h):
+    h = R - sqrt(R^2 - (chord/2)^2)
+    -> distance from chord to arc (sagitta).
+
+7) Segment Area:
+    segment_area = 0.5 * R^2 * (theta - sin(theta))
+    -> area between a chord and the arc above it.
+
+8) Relationship between arc, chord, angle:
+    chord = sqrt(2 * R^2 * (1 - cos(theta)))
+    -> chord from radius and angle without using sine.
+
+9) Power of a Point:
+    (tangent_length)^2 = external_segment * whole_secant
+    -> relates lengths when drawing tangents/secants from a point.
+
