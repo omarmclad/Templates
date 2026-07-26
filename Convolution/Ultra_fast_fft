@@ -1,0 +1,72 @@
+// ultra optimized fft
+typedef complex<double> cd;
+const double PI = acos(-1);
+
+// Global precomputed lookup arrays
+vector<cd> w;
+vector<int> rev;
+
+void prepare_fft(int n) {
+    if (w.size() == n) return;
+    w.resize(n);
+    rev.resize(n);
+    
+    for (int i = 0; i < n; i++) {
+        rev[i] = (rev[i >> 1] >> 1) | ((i & 1) ? (n >> 1) : 0);
+    }
+    for (int i = 0; i < n; i++) {
+        w[i] = cd(cos(2 * PI * i / n), sin(2 * PI * i / n));
+    }
+}
+
+void fft(vector<cd> &a, bool inverse) {
+    int n = a.size();
+    prepare_fft(n);
+
+    for (int i = 0; i < n; i++) {
+        if (i < rev[i]) swap(a[i], a[rev[i]]);
+    }
+
+    for (int len = 2; len <= n; len <<= 1) {
+        int step = n / len;
+        for (int i = 0; i < n; i += len) {
+            for (int j = 0; j < len / 2; j++) {
+                int w_idx = inverse ? (n - j * step) % n : j * step;
+                cd u = a[i + j];
+                cd v = a[i + j + len / 2] * w[w_idx];
+                a[i + j] = u + v;
+                a[i + j + len / 2] = u - v;
+            }
+        }
+    }
+
+    if (inverse) {
+        for (cd &x : a) x /= n;
+    }
+}
+
+// Simple top-level multiply function
+vector<int> multiply(const vector<int> &a, const vector<int> &b) {
+    int need = a.size() + b.size() - 1;
+    int n = 1;
+    while (n < need) n <<= 1;
+
+    vector<cd> p(n);
+    for (size_t i = 0; i < a.size(); i++) p[i].real(a[i]);
+    for (size_t i = 0; i < b.size(); i++) p[i].imag(b[i]);
+
+    // Single pass forward FFT
+    fft(p, false);
+
+    // Square components in frequency domain
+    for (int i = 0; i < n; i++) p[i] *= p[i];
+
+    // Inverse FFT
+    fft(p, true);
+
+    vector<int> ans(need);
+    for (int i = 0; i < need; i++) {
+        ans[i] = round(p[i].imag() / 2.0);
+    }
+    return ans;
+}
