@@ -1,0 +1,70 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+mt19937_64 rng(chrono::steady_clock::now().time_since_epoch().count());
+
+long long getRandom(long long l, long long r) {
+    return uniform_int_distribution<long long>(l, r)(rng);
+}
+
+struct DoubleHash {
+    static inline const long long mod1 = 1000000007;
+    static inline const long long mod2 = 1000000009;
+
+    // ==================== BASE CONFIGURATION TOGGLE ====================
+    // OPTION A: Dynamic Random Global Base (Default — Codeforces Anti-Hack Safe)
+    static inline long long base1 = 0, base2 = 0;
+
+    // OPTION B: Fixed Deterministic Base (Uncomment for easy local debugging)
+    // static inline long long base1 = 313, base2 = 1013;
+    // ====================================================================
+
+    static inline vector<long long> p1 = {1}, p2 = {1};
+
+    static void init_bases() {
+        if (base1 != 0) return; // Skips automatically if fixed base is set above!
+
+        // Dynamic Random Base Generation
+        base1 = getRandom(300, 1e9 - 1) | 1;
+        base2 = getRandom(300, 1e9 - 1) | 1;
+        while (base1 == base2) {
+            base2 = getRandom(300, 1e9 - 1) | 1;
+        }
+    }
+
+    static void ensure_powers(int n) {
+        init_bases();
+        int cur_sz = p1.size();
+        if (cur_sz > n) return;
+        p1.resize(n + 1);
+        p2.resize(n + 1);
+        for (int i = cur_sz; i <= n; ++i) {
+            p1[i] = (p1[i - 1] * base1) % mod1;
+            p2[i] = (p2[i - 1] * base2) % mod2;
+        }
+    }
+
+    vector<long long> h1, h2;
+
+    DoubleHash(const string& s) {
+        int n = s.length();
+        ensure_powers(n);
+
+        h1.assign(n + 1, 0);
+        h2.assign(n + 1, 0);
+
+        for (int i = 0; i < n; i++) {
+            long long val = (unsigned char)s[i];
+            h1[i + 1] = (h1[i] * base1 + val) % mod1;
+            h2[i + 1] = (h2[i] * base2 + val) % mod2;
+        }
+    }
+
+    // Returns 0-indexed substring hash pair for s[L...R] — O(1)
+    pair<long long, long long> get_hash(int L, int R) const {
+        if (L > R) return {0, 0};
+        long long hash1 = (h1[R + 1] - (h1[L] * p1[R - L + 1]) % mod1 + mod1) % mod1;
+        long long hash2 = (h2[R + 1] - (h2[L] * p2[R - L + 1]) % mod2 + mod2) % mod2;
+        return {hash1, hash2};
+    }
+};
