@@ -1,80 +1,92 @@
-vector<P> grahamScan(vector<P> pts) {
-    int n = pts.size();
-    if (n <= 1) return pts;
+#include <bits/stdc++.h>
+using namespace std;
 
-    // Remove duplicates
-    sort(all(pts));
-    pts.erase(unique(all(pts)), pts.end());
+using Pt = pair<double, double>;
+#define x first
+#define y second
 
-    // Step 1: find the pivot (lowest y, then x)
-    int pivot = 0;
-    for (int i = 1; i < pts.size(); ++i) {
-        if (make_pair(pts[i].y, pts[i].x) < make_pair(pts[pivot].y, pts[pivot].x))
-            pivot = i;
-    }
-    swap(pts[0], pts[pivot]);
-    P base = pts[0];
+const double EPS = 1e-9;
 
-    // Step 2: sort by polar angle around the pivot
-    sort(pts.begin() + 1, pts.end(), [&](const P& a, const P& b) {
-        int cp = base.triangle(a, b);
-        if (cp == 0) return base.dist(a) < base.dist(b); // closer first
-        return cp > 0; // left turn preferred
-    });
+Pt operator+(Pt a, Pt b) { return {a.x + b.x, a.y + b.y}; }
+Pt operator-(Pt a, Pt b) { return {a.x - b.x, a.y - b.y}; }
+Pt operator*(Pt a, double k) { return {a.x * k, a.y * k}; }
+Pt operator/(Pt a, double k) { return {a.x / k, a.y / k}; }
 
-    // Step 3: Graham scan stack
-    vector<P> hull;
-    for (const P& pt : pts) {
-        while (hull.size() >= 2 &&
-               hull[hull.size() - 2].triangle(hull.back(), pt) <= 0) {
-            hull.pop_back();
-        }
-        hull.push_back(pt);
-    }
+double dot(Pt a, Pt b) { return a.x * b.x + a.y * b.y; }
+double cross(Pt a, Pt b) { return a.x * b.y - a.y * b.x; }
+double cross(Pt a, Pt b, Pt c) { return cross(b - a, c - a); }
+double norm(Pt a) { return dot(a, a); }
+double len(Pt a) { return sqrt(norm(a)); }
+double dist(Pt a, Pt b) { return len(a - b); }
 
-    return hull;
+// Distance from point p to infinite line ab
+double dist_to_line(Pt p, Pt a, Pt b) {
+    return abs(cross(a, b, p)) / dist(a, b);
 }
-double rotatingCalipersDiameter(const vector<P>& pts) {
-    vector<P> hull = grahamScan(pts);
-    int n = hull.size();
-    if (n == 1) return 0;
-    if (n == 2) return hull[0].dist(hull[1]);
 
-    double maxDist = 0;
+// Monotone Chain Convex Hull (CCW Order, strict hull)
+vector<Pt> convex_hull(vector<Pt>& pts) {
+    int n = pts.size(), k = 0;
+    if (n <= 1) return pts;
+    vector<Pt> h(2 * n);
+    sort(pts.begin(), pts.end());
+    pts.erase(unique(pts.begin(), pts.end()), pts.end());
+    n = pts.size();
+
+    // Lower hull
+    for (int i = 0; i < n; i++) {
+        while (k >= 2 && cross(h[k - 2], h[k - 1], pts[i]) <= EPS) k--;
+        h[k++] = pts[i];
+    }
+    // Upper hull
+    for (int i = n - 2, t = k + 1; i >= 0; i--) {
+        while (k >= t && cross(h[k - 2], h[k - 1], pts[i]) <= EPS) k--;
+        h[k++] = pts[i];
+    }
+    h.resize(k - 1);
+    return h;
+}
+
+// Maximum pairwise distance (Diameter) using Rotating Calipers - O(N)
+double rotating_calipers_diameter(vector<Pt>& pts) {
+    vector<Pt> hull = convex_hull(pts);
+    int n = hull.size();
+    if (n == 0) return 0;
+    if (n == 1) return 0;
+    if (n == 2) return dist(hull[0], hull[1]);
+
+    double max_d = 0;
     int j = 1;
 
     for (int i = 0; i < n; i++) {
-        // Move j while distance increases
-        while ((hull[i].dist(hull[(j + 1) % n])) > (hull[i].dist(hull[j]))) {
+        int ni = (i + 1) % n;
+        // Advance j while the triangle area with edge (i, ni) increases
+        while (abs(cross(hull[i], hull[ni], hull[(j + 1) % n])) > 
+               abs(cross(hull[i], hull[ni], hull[j])) + EPS) {
             j = (j + 1) % n;
         }
-
-        maxDist = max(maxDist, hull[i].dist(hull[j]));
+        max_d = max({max_d, dist(hull[i], hull[j]), dist(hull[ni], hull[j])});
     }
-
-    return maxDist;
+    return max_d;
 }
-double rotatingCalipersMinWidth(const vector<P>& pts) {
-    vector<P> hull = grahamScan(pts);
+
+// Minimum bounding width using Rotating Calipers - O(N)
+double rotating_calipers_min_width(vector<Pt>& pts) {
+    vector<Pt> hull = convex_hull(pts);
     int n = hull.size();
     if (n <= 2) return 0;
 
-    double minWidth = 1e18;
+    double min_w = 1e18;
     int j = 1;
 
-    for (int i = 0; i < n; ++i) {
+    for (int i = 0; i < n; i++) {
         int ni = (i + 1) % n;
-
-        // Move j while height increases
-        while ((abs(hull[i].triangle(hull[ni], hull[(j + 1) % n]))) >
-               (abs(hull[i].triangle(hull[ni], hull[j])))) {
+        while (abs(cross(hull[i], hull[ni], hull[(j + 1) % n])) > 
+               abs(cross(hull[i], hull[ni], hull[j])) + EPS) {
             j = (j + 1) % n;
         }
-
-        // Once j is optimal, measure height
-        double height = hull[j].dist_to_line(hull[i], hull[ni]);
-        minWidth = min(minWidth, height);
+        double height = dist_to_line(hull[j], hull[i], hull[ni]);
+        min_w = min(min_w, height);
     }
-
-    return minWidth;
+    return min_w;
 }
