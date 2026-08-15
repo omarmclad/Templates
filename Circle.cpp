@@ -1,3 +1,77 @@
+using Pt = pair<double, double>;
+#define x first
+#define y second
+
+const double EPS = 1e-9;
+
+int sign(double val) { return (val > EPS) - (val < -EPS); }
+
+Pt operator+(Pt a, Pt b) { return {a.x + b.x, a.y + b.y}; }
+Pt operator-(Pt a, Pt b) { return {a.x - b.x, a.y - b.y}; }
+Pt operator*(Pt a, double k) { return {a.x * k, a.y * k}; }
+Pt operator/(Pt a, double k) { return {a.x / k, a.y / k}; }
+
+double dot(Pt a, Pt b) { return a.x * b.x + a.y * b.y; }
+double cross(Pt a, Pt b) { return a.x * b.y - a.y * b.x; }
+double norm(Pt a) { return dot(a, a); }
+double len(Pt a) { return sqrt(norm(a)); }
+double dist(Pt a, Pt b) { return len(a - b); }
+
+struct circle {
+    Pt p;
+    double r;
+
+    circle() : p({0, 0}), r(0) {}
+    circle(Pt p, double r) : p(p), r(r) {}
+
+    // Circumcircle / MEC of 3 points
+    circle(Pt a, Pt b, Pt c) {
+        double d = 2.0 * cross(b - a, c - a);
+        if (abs(d) < EPS) { 
+            // Collinear: pick max-distance pair as diameter
+            double d1 = dist(a, b), d2 = dist(a, c), d3 = dist(b, c);
+            if (d1 >= d2 && d1 >= d3)      { p = (a + b) / 2.0; r = d1 / 2.0; }
+            else if (d2 >= d1 && d2 >= d3) { p = (a + c) / 2.0; r = d2 / 2.0; }
+            else                           { p = (b + c) / 2.0; r = d3 / 2.0; }
+        } else {
+            // Direct circumcenter formula
+            double a2 = norm(a), b2 = norm(b), c2 = norm(c);
+            p.x = (a2 * (b.y - c.y) + b2 * (c.y - a.y) + c2 * (a.y - b.y)) / d;
+            p.y = (a2 * (c.x - b.x) + b2 * (a.x - c.x) + c2 * (b.x - a.x)) / d;
+            r = dist(p, a);
+        }
+    }
+};
+
+// Expected O(N) Minimum Enclosing Circle
+circle minimum_enclosing_circle(vector<Pt> &pts) {
+    static mt19937 rng(chrono::steady_clock::now().time_since_epoch().count());
+    shuffle(pts.begin(), pts.end(), rng);
+
+    int n = pts.size();
+    if (n == 0) return circle();
+    if (n == 1) return circle(pts[0], 0);
+
+    circle c(pts[0], 0);
+
+    for (int i = 1; i < n; i++) {
+        if (sign(dist(pts[i], c.p) - c.r) > 0) {
+            c = circle(pts[i], 0);
+            for (int j = 0; j < i; j++) {
+                if (sign(dist(pts[j], c.p) - c.r) > 0) {
+                    c = circle((pts[i] + pts[j]) / 2.0, dist(pts[i], pts[j]) / 2.0);
+                    for (int k = 0; k < j; k++) {
+                        if (sign(dist(pts[k], c.p) - c.r) > 0) {
+                            c = circle(pts[i], pts[j], pts[k]);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return c;
+}
+//================================================================//
 // Constants and helper functions
 const double EPS = 1e-10;
 
