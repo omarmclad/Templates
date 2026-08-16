@@ -340,13 +340,10 @@ double max_dist_convex(const vector<Pt>& A, const vector<Pt>& B) {
 // 4. INSCRIBED POLYGON AREA MAXIMIZATION
 // ============================================================================
 
-/*
- * Maximum Area Triangle inscribed inside a Convex Polygon.
- * Algorithm: Dobkin-Snyder / Rotating Calipers with 3 pointers.
- * Preconditions: Input must be a CCW Convex Hull.
- * Safety: Step-bounded loop prevents infinite pointers spinning.
- * Time Complexity: O(N)
- */
+// Maximum Area Triangle inscribed inside a Convex Polygon.
+// Algorithm: Dobkin-Snyder (Rotating Calipers)
+// Preconditions: Input must be a CCW Convex Hull (n >= 3).
+// Time Complexity: O(N)
 double max_triangle_area(const vector<Pt>& h) {
     int n = h.size();
     if (n < 3) return 0.0;
@@ -356,22 +353,37 @@ double max_triangle_area(const vector<Pt>& h) {
     };
 
     double max_a = 0;
-    int a = 0, b = 1, c = 2;
+    int b = 1, c = 2;
 
-    // Advance 3 pointers around the polygon
-    for (int step = 0; step < 2 * n; step++) {
+    // Anchor the first point 'a'
+    for (int a = 0; a < n; a++) {
+        // Fix pointers if they overlap
+        if (a == b) b = (a + 1) % n;
+        if (b == c) c = (b + 1) % n;
+
+        // Converge b and c for the current 'a'
+        while (true) {
+            bool moved = false;
+            
+            // Advance c as long as it strictly increases the area
+            while (area(a, b, (c + 1) % n) > area(a, b, c) + EPS) {
+                c = (c + 1) % n;
+                moved = true;
+            }
+            // Advance b as long as it strictly increases the area
+            while (area(a, (b + 1) % n, c) > area(a, b, c) + EPS) {
+                b = (b + 1) % n;
+                moved = true;
+            }
+            
+            // If neither b nor c moved in this pass, they are optimal for 'a'
+            if (!moved) break;
+        }
+
+        // Record the fully optimized triangle for this 'a'
         max_a = max(max_a, area(a, b, c));
-        
-        while (area(a, b, (c + 1) % n) > area(a, b, c) + EPS) {
-            c = (c + 1) % n;
-        }
-        while (area(a, (b + 1) % n, c) > area(a, b, c) + EPS) {
-            b = (b + 1) % n;
-        }
-        a = (a + 1) % n;
-        if (a == b) b = (b + 1) % n;
-        if (b == c) c = (c + 1) % n;
     }
+    
     return max_a;
 }
 
