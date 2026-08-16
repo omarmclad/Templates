@@ -153,14 +153,13 @@ vector<pair<int, int>> get_antipodal_pairs(const vector<Pt>& h) {
  * - Right pointer: Maximizes projection along edge direction (dot product).
  * - Left pointer: Minimizes projection along edge direction (dot product).
  */
-struct BoundingBoxResult {
-    double min_area;
-    double min_perimeter;
-};
-
 BoundingBoxResult min_bounding_box(const vector<Pt>& h) {
     int n = h.size();
-    if (n <= 2) return {0.0, 0.0};
+    if (n <= 1) return {0.0, 0.0};
+    if (n == 2) {
+        double d = dist(h[0], h[1]);
+        return {0.0, 2.0 * d};
+    }
 
     double min_area = 1e18, min_peri = 1e18;
     int top = 1, right = 1, left = 1;
@@ -169,18 +168,18 @@ BoundingBoxResult min_bounding_box(const vector<Pt>& h) {
         int ni = (i + 1) % n;
         Pt edge = h[ni] - h[i];
         double edge_len = len(edge);
-
+        if (edge_len < EPS) continue;
         // 1. Advance 'top' to maximize area / height relative to base edge
-        while (cross(edge, h[(top + 1) % n] - h[i]) > cross(edge, h[top] - h[i]) - EPS) {
+        while (cross(edge, h[(top + 1) % n] - h[i]) > cross(edge, h[top] - h[i])) {
             top = (top + 1) % n;
         }
         // 2. Advance 'right' to maximize projection along base edge
-        while (dot(edge, h[(right + 1) % n] - h[i]) > dot(edge, h[right] - h[i]) - EPS) {
+        while (dot(edge, h[(right + 1) % n] - h[i]) > dot(edge, h[right] - h[i])) {
             right = (right + 1) % n;
         }
         if (i == 0) left = right;
         // 3. Advance 'left' to minimize projection along base edge
-        while (dot(edge, h[(left + 1) % n] - h[i]) < dot(edge, h[left] - h[i]) + EPS) {
+        while (dot(edge, h[(left + 1) % n] - h[i]) <= dot(edge, h[left] - h[i])) {
             left = (left + 1) % n;
         }
 
