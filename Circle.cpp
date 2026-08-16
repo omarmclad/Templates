@@ -80,11 +80,11 @@ double arc_area(Pt center, double r, double alpha, double beta) {
 }
 
 // Computes total union area of N overlapping circles
-double circle_union_area(vector<Circle>& circles) {
+double circle_union_area(vector<circle>& circles) {
     int n = circles.size();
 
     // 1. Filter out zero-radius and fully contained / duplicate circles
-    vector<Circle> c;
+    vector<circle> c;
     for (int i = 0; i < n; i++) {
         if (circles[i].r <= EPS) continue; // Ignore point-circles
         bool contained = false;
@@ -94,8 +94,10 @@ double circle_union_area(vector<Circle>& circles) {
             
             // Circle i is completely inside Circle j
             if (circles[j].r >= circles[i].r + d - EPS) {
-                // If identical, keep the one with the smaller index
-                if (abs(circles[j].r - circles[i].r - d) <= EPS && i > j) continue;
+                // FIXED: Check for strictly IDENTICAL circles (d ~ 0 and r_i ~ r_j)
+                if (d <= EPS && abs(circles[i].r - circles[j].r) <= EPS) {
+                    if (i > j) continue; // Keep the circle with smaller index j
+                }
                 contained = true;
                 break;
             }
