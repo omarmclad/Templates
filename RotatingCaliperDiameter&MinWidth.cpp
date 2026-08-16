@@ -21,7 +21,9 @@ double dist(Pt a, Pt b) { return len(a - b); }
 
 // Distance from point p to infinite line ab
 double dist_to_line(Pt p, Pt a, Pt b) {
-    return abs(cross(a, b, p)) / dist(a, b);
+    double d = dist(a, b);
+    if (d < EPS) return dist(p, a); // Handles degenerate line (a == b)
+    return abs(cross(a, b, p)) / d;
 }
 
 // Monotone Chain Convex Hull (CCW Order, strict hull)
@@ -205,31 +207,28 @@ BoundingBoxResult min_bounding_box(const vector<Pt>& h) {
  * Time Complexity: O(N + M)
  */
 vector<Pt> minkowski_sum(vector<Pt> A, vector<Pt> B) {
-    // Remove degenerate zero-length edges
+    if (A.empty() || B.empty()) return {};
+
+    // Remove zero-length edges safely without destroying 1-point polygons
     auto clean = [&](vector<Pt>& P) {
-        if (P.empty()) return;
+        if (P.size() <= 1) return;
         vector<Pt> Q;
         for (size_t i = 0; i < P.size(); i++) {
             if (len(P[(i + 1) % P.size()] - P[i]) > EPS)
                 Q.push_back(P[i]);
         }
-        P.swap(Q);
+        if (!Q.empty()) P.swap(Q);
     };
 
     clean(A); clean(B);
-    if (A.empty() || B.empty()) return {};
-
     A = convex_hull(A);
     B = convex_hull(B);
 
     int n = A.size(), m = B.size();
     if (n == 0 || m == 0) return {};
-    
-    // Degenerate single-point fallbacks
     if (n == 1) { vector<Pt> res = B; for (auto& p : res) p = p + A[0]; return res; }
     if (m == 1) { vector<Pt> res = A; for (auto& p : res) p = p + B[0]; return res; }
 
-    // Reorder vertices so lowest-leftmost point is at index 0
     auto rotate_lowest = [&](vector<Pt>& P) {
         int pos = 0;
         for (size_t i = 1; i < P.size(); i++) {
@@ -244,7 +243,6 @@ vector<Pt> minkowski_sum(vector<Pt> A, vector<Pt> B) {
     rotate_lowest(A);
     rotate_lowest(B);
 
-    // Build directed edge vectors
     vector<Pt> ea(n), eb(m);
     for (int i = 0; i < n; i++) ea[i] = A[(i + 1) % n] - A[i];
     for (int i = 0; i < m; i++) eb[i] = B[(i + 1) % m] - B[i];
@@ -256,16 +254,15 @@ vector<Pt> minkowski_sum(vector<Pt> A, vector<Pt> B) {
     Pt cur = A[0] + B[0];
     res.push_back(cur);
 
-    // Two-pointer merge sorted by polar angle (cross product comparison)
     while (i < n || j < m) {
         Pt move;
         if (i == n) { move = eb[j++]; }
         else if (j == m) { move = ea[i++]; }
         else {
             double cr = cross(ea[i], eb[j]);
-            if (cr > EPS) { move = ea[i++]; }      // Edge A has smaller angle
-            else if (cr < -EPS) { move = eb[j++]; } // Edge B has smaller angle
-            else {                                  // Parallel edges: combine both
+            if (cr > EPS) { move = ea[i++]; }
+            else if (cr < -EPS) { move = eb[j++]; }
+            else {
                 move = ea[i] + eb[j];
                 i++; j++;
             }
@@ -273,7 +270,7 @@ vector<Pt> minkowski_sum(vector<Pt> A, vector<Pt> B) {
         cur = cur + move;
         res.push_back(cur);
     }
-    res.pop_back(); // Remove closing duplicate point
+    res.pop_back();
     return convex_hull(res);
 }
 
@@ -420,49 +417,6 @@ double max_quadrilateral_area(const vector<Pt>& h) {
     return max_a;
 }
 
-/*
- * TANGENTS FROM POINT TO CONVEX POLYGON - O(log N)
- * Uses binary search on CCW convex polygon vertices to find both tangent indices.
- * Returns pair {idx_left_tangent, idx_right_tangent}.
- */
-pair<int, int> tangents_to_convex(Pt p, const vector<Pt>& h) {
-    int n = h.size();
-
-    auto is_above = [&](Pt a, Pt b, Pt c) { return cross(b - a, c - a) > EPS; };
-    auto is_below = [&](Pt a, Pt b, Pt c) { return cross(b - a, c - a) < -EPS; };
-
-    auto find_tangent = [&](bool is_left) {
-        int l = 0, r = n;
-        while (l < r) {
-            int mid = (l + r) / 2;
-            Pt cur = h[mid], next = h[(mid + 1) % n], prev = h[(mid - 1 + n) % n];
-
-            bool cur_dir = is_left ? cross(cur - p, next - cur) >= -EPS 
-                                  : cross(cur - p, next - cur) <= EPS;
-            bool prev_dir = is_left ? cross(cur - p, prev - cur) >= -EPS 
-                                   : cross(cur - p, prev - cur) <= EPS;
-
-            // Found tangent vertex where both adjacent edges stay on one side of ray P->h[mid]
-            if (cur_dir && prev_dir) return mid;
-
-            bool p_above_mid = is_left ? is_above(p, h[l], h[mid]) 
-                                       : is_below(p, h[l], h[mid]);
-            bool mid_above_next = is_left ? is_above(p, h[mid], next) 
-                                          : is_below(p, h[mid], next);
-
-            if (!cur_dir) {
-                if (p_above_mid && !mid_above_next) r = mid;
-                else l = mid + 1;
-            } else {
-                if (!p_above_mid && mid_above_next) l = mid + 1;
-                else r = mid;
-            }
-        }
-        return l % n;
-    };
-
-    return {find_tangent(true), find_tangent(false)};
-}
 // ============================================================================
 // 5. TANGENTS FROM AN EXTERNAL POINT TO A CONVEX POLYGON
 // ============================================================================
