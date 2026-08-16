@@ -96,19 +96,18 @@ double rotating_calipers_min_width(vector<Pt>& pts) {
 // ============================================================================
 
 /*
- * Distance from point P to line segment AB.
- * Logic:
- * - Project AP onto AB using dot product.
- * - If dot(AB, AP) < 0, closest point on segment is A.
- * - If dot(BA, BP) < 0, closest point on segment is B.
- * - Otherwise, projection falls strictly between A and B, so return perpendicular line distance.
+ * Distance from Point P to Line Segment AB.
+ * Logic: Projects P onto vector AB using dot product.
+ * Safety: Handles A == B cleanly via dist_to_line.
+ * Time Complexity: O(1)
  */
 double dist_to_segment(Pt p, Pt a, Pt b) {
+    if (dist(a, b) < EPS) return dist(p, a); // Degenerate segment
     Pt ab = b - a, ap = p - a;
-    if (dot(ab, ap) < 0) return len(ap); // P projects behind A
+    if (dot(ab, ap) <= 0) return len(ap); // P projects behind endpoint A
     Pt ba = a - b, bp = p - b;
-    if (dot(ba, bp) < 0) return len(bp); // P projects beyond B
-    return dist_to_line(p, a, b);        // Perpendicular distance to segment
+    if (dot(ba, bp) <= 0) return len(bp); // P projects beyond endpoint B
+    return dist_to_line(p, a, b);        // Perpendicular projection falls on segment
 }
 
 /*
@@ -194,148 +193,228 @@ BoundingBoxResult min_bounding_box(const vector<Pt>& h) {
     return {min_area, min_peri};
 }
 
+// ============================================================================
+// 3. MINKOWSKI SUM & POLYGON DISTANCES
+// ============================================================================
+
 /*
- * MINKOWSKI SUM OF TWO CONVEX POLYGONS - O(N + M)
- * Computes polygon C = A + B = { a + b | a in A, b in B }.
- *
- * Algorithm:
- * 1. Reorder vertices of A and B so lowest-leftmost vertex is first.
- * 2. Merge edge vectors of A and B in polar angle order (like two-pointer merge in MergeSort).
+ * Minkowski Sum of two convex polygons A and B: C = { a + b | a ∈ A, b ∈ B }.
+ * Algorithm: Polar angle merge of edge vectors.
+ * Edge Cases Handled: Empty polygons, single points, line segments, duplicate edges.
+ * Preconditions: Polygons should be convex.
+ * Time Complexity: O(N + M)
  */
 vector<Pt> minkowski_sum(vector<Pt> A, vector<Pt> B) {
-    auto reorder = [](vector<Pt>& P) {
-        size_t pos = 0;
+    // Remove degenerate zero-length edges
+    auto clean = [&](vector<Pt>& P) {
+        if (P.empty()) return;
+        vector<Pt> Q;
+        for (size_t i = 0; i < P.size(); i++) {
+            if (len(P[(i + 1) % P.size()] - P[i]) > EPS)
+                Q.push_back(P[i]);
+        }
+        P.swap(Q);
+    };
+
+    clean(A); clean(B);
+    if (A.empty() || B.empty()) return {};
+
+    A = convex_hull(A);
+    B = convex_hull(B);
+
+    int n = A.size(), m = B.size();
+    if (n == 0 || m == 0) return {};
+    
+    // Degenerate single-point fallbacks
+    if (n == 1) { vector<Pt> res = B; for (auto& p : res) p = p + A[0]; return res; }
+    if (m == 1) { vector<Pt> res = A; for (auto& p : res) p = p + B[0]; return res; }
+
+    // Reorder vertices so lowest-leftmost point is at index 0
+    auto rotate_lowest = [&](vector<Pt>& P) {
+        int pos = 0;
         for (size_t i = 1; i < P.size(); i++) {
-            if (P[i].y < P[pos].y || (abs(P[i].y - P[pos].y) < EPS && P[i].x < P[pos].x)) {
+            if (P[i].y < P[pos].y - EPS || 
+               (abs(P[i].y - P[pos].y) <= EPS && P[i].x < P[pos].x)) {
                 pos = i;
             }
         }
         rotate(P.begin(), P.begin() + pos, P.end());
     };
 
-    reorder(A); reorder(B);
-    int n = A.size(), m = B.size();
-    // Append wrap-around points for seamless transition
-    A.push_back(A[0]); A.push_back(A[1]);
-    B.push_back(B[0]); B.push_back(B[1]);
+    rotate_lowest(A);
+    rotate_lowest(B);
+
+    // Build directed edge vectors
+    vector<Pt> ea(n), eb(m);
+    for (int i = 0; i < n; i++) ea[i] = A[(i + 1) % n] - A[i];
+    for (int i = 0; i < m; i++) eb[i] = B[(i + 1) % m] - B[i];
 
     vector<Pt> res;
+    res.reserve(n + m);
+
     int i = 0, j = 0;
+    Pt cur = A[0] + B[0];
+    res.push_back(cur);
+
+    // Two-pointer merge sorted by polar angle (cross product comparison)
     while (i < n || j < m) {
-        res.push_back(A[i] + B[j]);
-        // Compare polar angle of current edge vector of A vs current edge vector of B
-        double crs = cross(A[i + 1] - A[i], B[j + 1] - B[j]);
-        if (crs >= -EPS && i < n) i++;
-        if (crs <= EPS && j < m) j++;
+        Pt move;
+        if (i == n) { move = eb[j++]; }
+        else if (j == m) { move = ea[i++]; }
+        else {
+            double cr = cross(ea[i], eb[j]);
+            if (cr > EPS) { move = ea[i++]; }      // Edge A has smaller angle
+            else if (cr < -EPS) { move = eb[j++]; } // Edge B has smaller angle
+            else {                                  // Parallel edges: combine both
+                move = ea[i] + eb[j];
+                i++; j++;
+            }
+        }
+        cur = cur + move;
+        res.push_back(cur);
     }
+    res.pop_back(); // Remove closing duplicate point
     return convex_hull(res);
 }
 
 /*
- * MINIMUM DISTANCE BETWEEN TWO CONVEX POLYGONS - O(N + M)
- * Uses Minkowski Difference: dist(A, B) = dist(Origin (0,0), A - B)
- * Where A - B = Minkowski Sum of A and (-B).
+/*
+ * Point Inclusion in Convex Polygon.
+ * Preconditions: Polygon 'h' MUST be in strictly CCW order.
+ * Safety: Handles N = 1 (point check) and N = 2 (segment check).
+ * Time Complexity: O(N)
  */
 bool point_in_convex(Pt p, const vector<Pt>& h) {
     int n = h.size();
+    if (n == 0) return false;
+    if (n == 1) return dist(p, h[0]) <= EPS;
+    if (n == 2) return dist_to_segment(p, h[0], h[1]) <= EPS;
+
     for (int i = 0; i < n; i++) {
-        if (cross(h[(i + 1) % n] - h[i], p - h[i]) < -EPS) return false;
+        // If P is strictly to the right of any edge, it lies outside
+        if (cross(h[i], h[(i + 1) % n], p) < -EPS) return false;
     }
     return true;
 }
 
-double min_dist_convex_polygons(vector<Pt> A, vector<Pt> B) {
-    // Negate polygon B coordinates to convert subtraction into Minkowski addition: A + (-B)
+/*
+ * Minimum Euclidean Distance between Two Convex Polygons.
+ * Formula: dist(A, B) = min_dist_from_origin_to(A + (-B))
+ * Returns 0 if polygons overlap or touch.
+ * Time Complexity: O(N + M)
+ */
+double min_dist_convex(const vector<Pt>& A, const vector<Pt>& B) {
+    // Negate B to transform subtraction into Minkowski Addition: A + (-B)
     vector<Pt> negB = B;
     for (auto& p : negB) p = Pt{-p.x, -p.y};
-    
-    vector<Pt> C = minkowski_sum(A, negB);
-    
-    // If origin is inside the Minkowski difference, polygons overlap (distance is 0)
-    if (point_in_convex({0, 0}, C)) return 0.0;
 
-    // Otherwise, minimum distance is distance from (0,0) to boundary of C
-    double min_d = 1e18;
+    vector<Pt> C = minkowski_sum(A, negB);
+    if (C.empty()) return 0;
+
+    // Origin (0,0) inside Minkowski Difference -> Polygons intersect
+    if (point_in_convex({0, 0}, C)) return 0;
+    if (C.size() == 1) return dist({0, 0}, C[0]);
+    if (C.size() == 2) return dist_to_segment({0, 0}, C[0], C[1]);
+
+    // Minimum distance from Origin (0,0) to boundary of Minkowski Polygon C
+    double ans = 1e18;
     int n = C.size();
     for (int i = 0; i < n; i++) {
-        min_d = min(min_d, dist_to_segment({0, 0}, C[i], C[(i + 1) % n]));
+        ans = min(ans, dist_to_segment({0, 0}, C[i], C[(i + 1) % n]));
     }
-    return min_d;
+    return ans;
 }
-
 /*
- * MAXIMUM DISTANCE BETWEEN TWO CONVEX POLYGONS - O(N + M)
- * Uses two simultaneous calipers resting on both polygons, rotating them in sync.
+ * Maximum Distance between Two Convex Polygons.
+ * Returns the maximum pairwise distance between any vertex of A and vertex of B.
+ * Time Complexity: O(N + M)
  */
-double max_dist_convex_polygons(const vector<Pt>& A, const vector<Pt>& B) {
-    int n = A.size(), m = B.size();
-    if (n == 0 || m == 0) return 0.0;
+double max_dist_convex(const vector<Pt>& A, const vector<Pt>& B) {
+    vector<Pt> negB = B;
+    for (auto& p : negB) p = Pt{-p.x, -p.y};
 
-    int ymaxA = 0, yminB = 0;
-    for (int i = 1; i < n; i++) if (A[i].y > A[ymaxA].y) ymaxA = i;
-    for (int i = 1; i < m; i++) if (B[i].y < B[yminB].y) yminB = i;
-
-    double max_d = 0;
-    int i = ymaxA, j = yminB;
-    for (int step = 0; step < n + m; step++) {
-        max_d = max(max_d, dist(A[i], B[j]));
-        int ni = (i + 1) % n;
-        int nj = (j + 1) % m;
-        // Compare edge directions to decide which caliper moves forward first
-        if (cross(A[ni] - A[i], B[j] - B[nj]) > EPS) {
-            i = ni;
-        } else {
-            j = nj;
-        }
-    }
-    return max_d;
+    vector<Pt> C = minkowski_sum(A, negB);
+    double ans = 0;
+    for (auto p : C) ans = max(ans, len(p));
+    return ans;
 }
 
+// ============================================================================
+// 4. INSCRIBED POLYGON AREA MAXIMIZATION
+// ============================================================================
+
 /*
- * MAXIMUM INSCRIBED TRIANGLE AREA - O(N)
- * Finds 3 vertices (a, b, c) of convex polygon that maximize triangle area.
- * Uses 3 pointers: as 'a' moves, 'b' and 'c' advance monotonically around polygon.
+ * Maximum Area Triangle inscribed inside a Convex Polygon.
+ * Algorithm: Dobkin-Snyder / Rotating Calipers with 3 pointers.
+ * Preconditions: Input must be a CCW Convex Hull.
+ * Safety: Step-bounded loop prevents infinite pointers spinning.
+ * Time Complexity: O(N)
  */
 double max_triangle_area(const vector<Pt>& h) {
     int n = h.size();
-    if (n < 3) return 0;
-    double max_a = 0;
-    int b = 1, c = 2;
+    if (n < 3) return 0.0;
 
     auto area = [&](int i, int j, int k) {
         return abs(cross(h[i], h[j], h[k])) * 0.5;
     };
 
-    for (int a = 0; a < n; a++) {
-        while (area(a, b, (c + 1) % n) >= area(a, b, c)) c = (c + 1) % n;
-        while (area(a, (b + 1) % n, c) >= area(a, b, c)) b = (b + 1) % n;
+    double max_a = 0;
+    int a = 0, b = 1, c = 2;
+
+    // Advance 3 pointers around the polygon
+    for (int step = 0; step < 2 * n; step++) {
         max_a = max(max_a, area(a, b, c));
+        
+        while (area(a, b, (c + 1) % n) > area(a, b, c) + EPS) {
+            c = (c + 1) % n;
+        }
+        while (area(a, (b + 1) % n, c) > area(a, b, c) + EPS) {
+            b = (b + 1) % n;
+        }
+        a = (a + 1) % n;
+        if (a == b) b = (b + 1) % n;
+        if (b == c) c = (c + 1) % n;
     }
     return max_a;
 }
 
 /*
- * MAXIMUM INSCRIBED QUADRILATERAL AREA - O(N^2)
- * Fixes a diagonal (i, j) and finds optimal vertex on each side of diagonal using 2 calipers.
+ * Maximum Area Quadrilateral inscribed inside a Convex Polygon.
+ * Algorithm: Fix diagonal (i, j) and find max area vertices on both sides using calipers.
+ * Preconditions: Input must be a CCW Convex Hull.
+ * Safety: Explicit index inequalities prevent duplicate/overlapping vertex selections.
+ * Time Complexity: O(N^2)
  */
 double max_quadrilateral_area(const vector<Pt>& h) {
     int n = h.size();
-    if (n < 4) return 0;
-    double max_a = 0;
+    if (n < 4) return 0.0;
 
     auto area = [&](int i, int j, int k) {
         return abs(cross(h[i], h[j], h[k])) * 0.5;
     };
 
+    double max_a = 0;
+
     for (int i = 0; i < n; i++) {
         int p1 = (i + 1) % n;
         int p2 = (i + 3) % n;
+
         for (int j = (i + 2) % n; j != i; j = (j + 1) % n) {
-            // Advance pointer on top side of diagonal (i, j)
-            while (area(i, j, (p1 + 1) % n) >= area(i, j, p1)) p1 = (p1 + 1) % n;
-            // Advance pointer on bottom side of diagonal (i, j)
-            while (area(i, j, (p2 + 1) % n) >= area(i, j, p2)) p2 = (p2 + 1) % n;
-            max_a = max(max_a, area(i, j, p1) + area(i, j, p2));
+            if (j == (i + 1) % n) continue;
+
+            // Advance top pointer p1 for diagonal (i, j)
+            while ((p1 + 1) % n != j && area(i, j, (p1 + 1) % n) >= area(i, j, p1) - EPS) {
+                p1 = (p1 + 1) % n;
+            }
+            // Advance bottom pointer p2 for diagonal (i, j)
+            while ((p2 + 1) % n != i && area(i, j, (p2 + 1) % n) >= area(i, j, p2) - EPS) {
+                p2 = (p2 + 1) % n;
+            }
+
+            // Ensure valid distinct quadrilateral vertices
+            if (p1 != i && p1 != j && p2 != i && p2 != j && p1 != p2) {
+                max_a = max(max_a, area(i, j, p1) + area(i, j, p2));
+            }
         }
     }
     return max_a;
@@ -383,4 +462,35 @@ pair<int, int> tangents_to_convex(Pt p, const vector<Pt>& h) {
     };
 
     return {find_tangent(true), find_tangent(false)};
+}
+// ============================================================================
+// 5. TANGENTS FROM AN EXTERNAL POINT TO A CONVEX POLYGON
+// ============================================================================
+
+/*
+ * Finds Left and Right Tangent Vertex Indices from Point P to Convex Polygon 'h'.
+ * Returns pair {left_tangent_idx, right_tangent_idx}.
+ * Time Complexity: O(N) linear scan (safe against edge-case binary search traps).
+ */
+pair<int, int> tangents_to_convex(Pt p, const vector<Pt>& h) {
+    int n = h.size();
+    if (n == 0) return {-1, -1};
+    if (n == 1) return {0, 0};
+
+    auto is_tangent = [&](int i, bool is_left) {
+        Pt prev = h[(i - 1 + n) % n];
+        Pt next = h[(i + 1) % n];
+        Pt cur = h[i];
+        double cr1 = cross(cur - p, next - cur);
+        double cr2 = cross(cur - p, prev - cur);
+        if (is_left) return cr1 >= -EPS && cr2 >= -EPS;
+        return cr1 <= EPS && cr2 <= EPS;
+    };
+
+    int l_idx = 0, r_idx = 0;
+    for (int i = 0; i < n; i++) {
+        if (is_tangent(i, true)) l_idx = i;
+        if (is_tangent(i, false)) r_idx = i;
+    }
+    return {l_idx, r_idx};
 }
