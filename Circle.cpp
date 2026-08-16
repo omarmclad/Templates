@@ -71,6 +71,89 @@ circle minimum_enclosing_circle(vector<Pt> &pts) {
     }
     return c;
 }
+
+
+double arc_area(Pt center, double r, double alpha, double beta) {
+    return r * r * (beta - alpha) 
+         + r * center.x * (sin(beta) - sin(alpha)) 
+         - r * center.y * (cos(beta) - cos(alpha));
+}
+
+// Computes total union area of N overlapping circles
+double circle_union_area(vector<Circle>& circles) {
+    int n = circles.size();
+
+    // 1. Filter out zero-radius and fully contained / duplicate circles
+    vector<Circle> c;
+    for (int i = 0; i < n; i++) {
+        if (circles[i].r <= EPS) continue; // Ignore point-circles
+        bool contained = false;
+        for (int j = 0; j < n; j++) {
+            if (i == j || circles[j].r <= EPS) continue;
+            double d = dist(circles[i].p, circles[j].p);
+            
+            // Circle i is completely inside Circle j
+            if (circles[j].r >= circles[i].r + d - EPS) {
+                // If identical, keep the one with the smaller index
+                if (abs(circles[j].r - circles[i].r - d) <= EPS && i > j) continue;
+                contained = true;
+                break;
+            }
+        }
+        if (!contained) c.push_back(circles[i]);
+    }
+
+    n = c.size();
+    double total_area = 0;
+
+    // 2. Process each circle to isolate exposed boundary arcs
+    for (int i = 0; i < n; i++) {
+        vector<pair<double, double>> covered;
+
+        for (int j = 0; j < n; j++) {
+            if (i == j) continue;
+            double d = dist(c[i].p, c[j].p);
+            
+            // No intersection or touch only at boundary
+            if (d >= c[i].r + c[j].r - EPS || d <= abs(c[i].r - c[j].r) + EPS) continue;
+
+            // Angle of vector connecting centers
+            double alpha = atan2(c[j].p.y - c[i].p.y, c[j].p.x - c[i].p.x);
+            
+            // Half-angle subtended by the intersection sector
+            double beta = safe_acos((c[i].r * c[i].r + d * d - c[j].r * c[j].r) / (2.0 * c[i].r * d));
+
+            double l = alpha - beta;
+            double r = alpha + beta;
+
+            // Normalize angular range into [-PI, PI]
+            if (l < -PI) {
+                covered.push_back({l + 2 * PI, PI});
+                covered.push_back({-PI, r});
+            } else if (r > PI) {
+                covered.push_back({l, PI});
+                covered.push_back({-PI, r - 2 * PI});
+            } else {
+                covered.push_back({l, r});
+            }
+        }
+
+        // Sentinel endpoint to complete sweep
+        covered.push_back({PI, PI});
+        sort(covered.begin(), covered.end());
+
+        // 3. Angular sweep: integrate over uncovered gaps
+        double cur_l = -PI;
+        for (const auto& interval : covered) {
+            if (interval.first > cur_l) {
+                total_area += arc_area(c[i].p, c[i].r, cur_l, interval.first);
+            }
+            cur_l = max(cur_l, interval.second);
+        }
+    }
+
+    return total_area / 2.0;
+}
 //================================================================//
 // Constants and helper functions
 const double EPS = 1e-10;
